@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, resources, SpriteFrame, instantiate, Label, Sprite, log, EventTouch } from 'cc';
+import { _decorator, Component, Node, resources, SpriteFrame, instantiate, Label, Sprite, log, EventTouch, find } from 'cc';
 const { ccclass, property } = _decorator;
 
 let users = [
@@ -39,6 +39,21 @@ export class Game extends Component {
         sprite.grayscale = true
     }
 
+    initPlayers() {
+        let content = this.playerContainer
+
+        let count = 0
+        for (let i of users) {
+            let p = content.children[count++]
+            if (!p) {
+                p = instantiate(content.children[0])
+                content.addChild(p)
+            }
+
+            this.initProfile(i, p)
+        }
+    }
+
     onPlayerSelect(ev: EventTouch) {
         let node = ev.target as Node
         let players = this.players
@@ -57,23 +72,34 @@ export class Game extends Component {
     onGameStart(ev: EventTouch) {
         (ev.target as Node).active = false
 
-        for(let i of this.playerContainer.children) {
-            if(this.players.indexOf(i) < 0) i.active = false
+        for (let i of this.playerContainer.children) {
+            if (this.players.indexOf(i) < 0) i.active = false
         }
     }
 
+    hideAllButThis(node: Node) {
+        let children = this.node.children
+        for(let i = 1; i< children.length; i++) {
+            children[i].active = false
+        }
+
+        node.active = true
+    }
+
+    doSoiDauDan(node: Node) {
+
+    }
+
     async start() {
-        let content = this.playerContainer
+        this.initPlayers()
 
-        let count = 0
-        for (let i of users) {
-            let p = content.children[count++]
-            if (!p) {
-                p = instantiate(content.children[0])
-                content.addChild(p)
-            }
+        let selectScreen = find('selectScreen', this.node)
+        let soidaudan = find('soidaudan', this.node)
+        let sayruou = find('sayruou', this.node)
 
-            this.initProfile(i, p)
+        // while(true) 
+        {
+            this.hideAllButThis(soidaudan)
         }
     }
 
