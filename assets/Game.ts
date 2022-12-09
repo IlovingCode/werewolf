@@ -27,7 +27,7 @@ export class Game extends Component {
     @property(Node)
     playerContainer: Node = null
 
-    players: Node[] = []
+    players = new Map<string, Node>
 
     async initProfile(name: string, node: Node) {
         node.name = name
@@ -57,15 +57,13 @@ export class Game extends Component {
     onPlayerSelect(ev: EventTouch) {
         let node = ev.target as Node
         let players = this.players
-        let id = this.players.indexOf(node)
 
-        if (id < 0) {
+        if (!players.has(node.name)) {
             node.getComponentInChildren(Sprite).grayscale = false
-            players.push(node)
+            players.set(node.name, node)
         } else {
             node.getComponentInChildren(Sprite).grayscale = true
-            players[id] = players[players.length - 1]
-            players.length--
+            players.set(node.name, null)
         }
     }
 
@@ -73,13 +71,13 @@ export class Game extends Component {
         (ev.target as Node).active = false
 
         for (let i of this.playerContainer.children) {
-            if (this.players.indexOf(i) < 0) i.active = false
+            if (!this.players.has(i.name)) i.active = false
         }
     }
 
     hideAllButThis(node: Node) {
         let children = this.node.children
-        for(let i = 1; i< children.length; i++) {
+        for (let i = 1; i < children.length; i++) {
             children[i].active = false
         }
 
@@ -87,7 +85,9 @@ export class Game extends Component {
     }
 
     doSoiDauDan(node: Node) {
+        let source = find('role/source', node)
 
+        
     }
 
     async start() {
