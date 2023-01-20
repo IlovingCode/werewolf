@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, SpriteFrame, Label, Sprite } from 'cc';
+import { _decorator, Component, Node, SpriteFrame, Label, Sprite, log } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('Player')
@@ -10,6 +10,8 @@ export class Player extends Component {
 
     onPlayerSelect() { this.enabled && uiController.onPlayerSelect(this) }
 
+    onSwitch() { this.enabled && this.switch(this.isDead) }
+
     role: string = null
 
     set(name: string, spriteFrame: SpriteFrame, role: string = null) {
@@ -19,7 +21,21 @@ export class Player extends Component {
         this.role = role
     }
 
+    kill() {
+        this.enabled = false
+        this.switch(false)
+    }
+
     switch(isOn: boolean) { this.sprite.grayscale = !isOn }
+
+    get isDead() { return this.sprite.grayscale }
+
+    reset() {
+        this.sprite.spriteFrame = uiController.defaultAvatar
+        this.text.string = uiController.defaultName
+        this.node.name = uiController.defaultName
+        this.role = null
+    }
 
     copy(player: Player) {
         this.set(player.node.name, player.sprite.spriteFrame, player.role)

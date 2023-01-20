@@ -1,7 +1,8 @@
-import { _decorator, Component, Node, resources, SpriteFrame, instantiate, Label, Sprite, log, EventTouch, find, Button } from 'cc';
+import { _decorator, Component, Node, resources, SpriteFrame, instantiate, Label, Sprite, log, EventTouch, find, Button, game } from 'cc';
 import animController from './AnimController';
 import gameController from './GameController';
 import { Player } from './Player';
+import { RolePanel } from './RolePanel';
 import taskController from './Task';
 const { ccclass, property } = _decorator;
 
@@ -35,10 +36,14 @@ export class UIController extends Component {
     @property(Label) title: Label = null
     @property(Label) body: Label = null
     @property(Node) popup: Node = null
-    @property(Node) selection: Node = null
+    @property(Node) playerSelection: Node = null
+    @property(Node) roleSelection: Node = null
     @property(Node) nextButton: Node = null
+    @property(SpriteFrame) defaultAvatar: SpriteFrame = null
 
-    screens: Node[] = null
+    defaultName = '???'
+    screens: RolePanel[] = null
+    picker: Player = null
 
     async initProfile(name: string, player: Player) {
         let spriteFrame = await loadAvatar(name + '/spriteFrame')
@@ -62,27 +67,31 @@ export class UIController extends Component {
     }
 
     async onPlayerSelect(player: Player) {
-        if (gameController.picker) {
-            gameController.picker.copy(player)
+        if (this.picker) {
+            this.picker.copy(player)
 
-            animController.hide(this.selection)
+            animController.hide(this.playerSelection)
             await taskController.delay(.5)
 
-            this.selection.active = false
-            this.nextButton.active = true
+            this.playerSelection.active = false
+            gameController.doPick(player)
         } else {
             let players = gameController.players
 
-            if (!players.has(player.node.name)) {
+            if (!players.has(player.text.string)) {
                 player.switch(true)
-                players.set(player.node.name, player)
+                players.set(player.text.string, player)
             } else {
                 player.switch(false)
-                players.delete(player.node.name)
+                players.delete(player.text.string)
             }
-
-            this.nextButton.active = players.size > 5
         }
+    }
+
+    onRoleSelect(ev: EventTouch) {
+        let node = ev.target as Node
+
+        node.getComponent(Sprite).grayscale = gameController.onRolePick(ev.target)
     }
 
     filter(players: Map<string, Player>, role: string = null) {
@@ -92,9 +101,10 @@ export class UIController extends Component {
     }
 
     async onTargetClick(target: Player) {
-        gameController.picker = target
+        this.picker = target
+        target.reset()
 
-        animController.show(this.selection)
+        animController.show(this.playerSelection)
     }
 
     async onNext(ev: EventTouch) {
@@ -129,8 +139,9 @@ export class UIController extends Component {
     // }
 
     hideAllAndShow(node: Node) {
-        for (let i of this.screens) i.active = false
-        this.selection.active = false
+        for (let i of this.screens) i.node.active = false
+        this.playerSelection.active = false
+        this.roleSelection.active = false
         this.popup.active = false
         this.nextButton.active = false
 
@@ -146,14 +157,14 @@ export class UIController extends Component {
         this.initPlayers()
 
         let node = this.node
-        let soidaudan = find('soidaudan', node)
-        let soi = find('soi', node)
-        let sayruou = find('sayruou', node)
-        let tientri = find('tientri', node)
-        let phuthuy = find('phuthuy', node)
-        let thosan = find('thosan', node)
-        let baove = find('baove', node)
-        let danlang = find('danlang', node)
+        let soidaudan = find('soidaudan', node).getComponent(RolePanel)
+        let soi = find('soi', node).getComponent(RolePanel)
+        let sayruou = find('sayruou', node).getComponent(RolePanel)
+        let tientri = find('tientri', node).getComponent(RolePanel)
+        let phuthuy = find('phuthuy', node).getComponent(RolePanel)
+        let thosan = find('thosan', node).getComponent(RolePanel)
+        let baove = find('baove', node).getComponent(RolePanel)
+        let danlang = find('danlang', node).getComponent(RolePanel)
 
         this.screens = [soidaudan, soi, sayruou, tientri, phuthuy, thosan, baove, danlang]
 
@@ -161,37 +172,42 @@ export class UIController extends Component {
 
         //delay for engine init
         await taskController.delay(.5)
-        // while(true) 
-        {
-            await gameController.doSelectPlayer(this.selection)
-            await taskController.delay(.5)
+        await gameController.doSelectPlayer(this.playerSelection)
+        await gameController.doSelectRole(this.roleSelection)
 
-            await gameController.doSoiDauDan(soidaudan)
-            await gameController.doSayRuou(sayruou)
-            await gameController.doBaoVe(baove)
+        let tasks = []
+        log(gameController.ROLES)
 
-            // await taskController.check(() => this.taskDone)
-
-            // this.taskDone = false
-            // this.hideAllAndShow(soi)
-
-            // await taskController.check(() => this.taskDone)
-
-            // this.taskDone = false
-            // this.hideAllAndShow(tientri)
-
-            // await taskController.check(() => this.taskDone)
-
-            // this.taskDone = false
-            // this.hideAllAndShow(phuthuy)
-
-            // await taskController.check(() => this.taskDone)
-
-            // this.taskDone = false
-            // this.hideAllAndShow(thosan)
-
-            // await taskController.check(() => this.taskDone)
+        if (gameController.ROLES.indexOf('phuthuy') >= 0) {
+            tasks.push(gameController.callPhuThuy.bind(gameController, phuthuy))
         }
+
+        if (gameController.ROLES.indexOf('baove') >= 0) {
+            tasks.push(gameController.callBaoVe.bind(gameController, baove))
+        }
+
+        if (gameController.ROLES.indexOf('tientri') >= 0) {
+            tasks.push(gameController.callTientri.bind(gameController, tientri))
+        }
+
+        if (gameController.ROLES.indexOf('thosan') >= 0) {
+            tasks.push(gameController.callThoSan.bind(gameController, thosan))
+        }
+
+        let check = 0
+        while (check == 0) {
+            await gameController.callSoi(soi)
+
+            for (let i of tasks) await i()
+
+            await gameController.callDanlang(danlang)
+
+            this.filter(gameController.players, '')
+
+            check = gameController.check()
+        }
+
+        log(check < 0 ? 'soi thang' : 'dan lang thang')
     }
 
     update(deltaTime) {
